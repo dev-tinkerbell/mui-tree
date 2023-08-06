@@ -15,7 +15,7 @@ const sampleData = {
         },
         {
           id: "11",
-          name: "Children -11",
+          name: "ChildRen - 11",
         },
       ],
     },

@@ -1,87 +1,75 @@
 import React, { useState } from "react";
 import { TextField } from "@mui/material";
-import { uniq } from "lodash";
 import { TreeView, TreeItem } from "@mui/lab";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
-const TreeFilter = (props) => {
-  const { data } = props;
-  const [expanded, setExpanded] = useState([]);
-  const [selected, setSelected] = useState([]);
-  const [text, setText] = useState();
+const TreeFilter = ({ data }) => {
+  const [expandedNodes, setExpandedNodes] = useState(["0"]);
+  const [selectedNodes, setSelectedNodes] = useState([]);
+  const [matchedIds, setMatchedIds] = useState([]);
 
   const onFilterKeyUp = (e) => {
     const value = e.target.value;
-    const filter = value.trim();
+    const filteredText = value.trim().toLowerCase();
 
-    setText(filter);
+    const { resultIds, resultPathIds } = getSearchedId(data, filteredText);
 
-    console.log("data", data);
-    //   debugger;
-    const { resultIds, path, includedIdPath } = getSearchedId(
-      [],
-      [],
-      [],
-      data,
-      filter
-    );
-    console.log("resultIds", resultIds, path, uniq(includedIdPath));
-
-    if (includedIdPath.length === 0) {
-      setSelected((prev) => []);
-      setExpanded((prev) => prev);
-      console.log("not found");
+    if (resultPathIds.length === 0) {
+      setMatchedIds([]);
+      console.log("No matching nodes found.");
       return;
     }
 
-    setSelected(resultIds);
-    setExpanded(uniq(includedIdPath));
-
-    if (!filter) {
-      setSelected((prev) => []);
-      setExpanded((prev) => ["0"]);
+    if (!filteredText) {
+      setMatchedIds([]);
+      setExpandedNodes(["0"]);
       return;
     }
+
+    setMatchedIds(resultIds);
+    setExpandedNodes(filterUniq(resultPathIds));
+  };
+
+  const filterUniq = (arr) => {
+    const uniqueValues = [];
+    for (const value of arr) {
+      if (!uniqueValues.includes(value)) {
+        uniqueValues.push(value);
+      }
+    }
+    return uniqueValues;
   };
 
   const handleToggle = (event, nodeIds) => {
-    let expandedTemp = expanded;
-    expandedTemp = nodeIds;
-    setExpanded(expandedTemp);
+    setExpandedNodes(nodeIds);
   };
 
   const handleSelect = (event, nodeIds) => {
-    setSelected(nodeIds);
+    setSelectedNodes(nodeIds);
   };
 
-  const getSearchedId = (resultIds, path, resultPath, nodes, filter) => {
-    const newPath = [...path, nodes.id];
-    let includedIdPath = [];
+  const getSearchedId = (nodes, filteredText) => {
+    const resultIds = [];
+    const resultPathIds = [];
 
-    // 타겟 string
-    if (nodes.name.includes(filter)) {
-      resultIds = [...resultIds, nodes.id];
-      includedIdPath = [...resultPath, ...newPath];
-    }
+    const searchNodes = (currentNode, path) => {
+      path = [...path, currentNode.id];
 
-    if (nodes.children && nodes.children.length > 0) {
-      for (let index = 0; index < nodes.children.length; index++) {
-        const result = getSearchedId(
-          resultIds,
-          newPath,
-          includedIdPath,
-          nodes.children[index],
-          filter
-        );
-
-        resultIds = result.resultIds;
-        path = result.path;
-        includedIdPath = [...includedIdPath, ...result.includedIdPath];
+      if (currentNode.name.toLowerCase().includes(filteredText)) {
+        resultIds.push(currentNode.id);
+        resultPathIds.push(...path);
       }
-    }
 
-    return { resultIds, path, includedIdPath };
+      if (currentNode.children && currentNode.children.length > 0) {
+        for (const childNode of currentNode.children) {
+          searchNodes(childNode, path);
+        }
+      }
+    };
+
+    searchNodes(nodes, []);
+    return { resultIds, resultPathIds };
   };
 
   const renderTree = (nodes) => {
@@ -90,10 +78,14 @@ const TreeFilter = (props) => {
     }
 
     return (
-      <TreeItem key={nodes.id} nodeId={nodes.id} label={nodes.name}>
-        {Array.isArray(nodes.children)
-          ? nodes.children.map((node) => renderTree(node))
-          : null}
+      <TreeItem
+        key={nodes.id}
+        nodeId={nodes.id}
+        label={nodes.name}
+        className={matchedIds.some((node) => node === nodes.id) ? "active" : ""}
+      >
+        {Array.isArray(nodes.children) &&
+          nodes.children.map((node) => renderTree(node))}
       </TreeItem>
     );
   };
@@ -105,8 +97,8 @@ const TreeFilter = (props) => {
       <TreeView
         defaultCollapseIcon={<ExpandMoreIcon />}
         defaultExpandIcon={<ChevronRightIcon />}
-        expanded={expanded}
-        selected={selected}
+        expanded={expandedNodes}
+        selected={selectedNodes}
         onNodeToggle={handleToggle}
         onNodeSelect={handleSelect}
       >
