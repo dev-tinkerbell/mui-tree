@@ -28,11 +28,19 @@ const TreeFilter = (props) => {
     );
     console.log("resultIds", resultIds, path, uniq(includedIdPath));
 
+    if (includedIdPath.length === 0) {
+      setSelected((prev) => []);
+      setExpanded((prev) => prev);
+      console.log("not found");
+      return;
+    }
+
     setSelected(resultIds);
     setExpanded(uniq(includedIdPath));
 
     if (!filter) {
-      setExpanded(["root"]);
+      setSelected((prev) => []);
+      setExpanded((prev) => ["0"]);
       return;
     }
   };
